@@ -166,7 +166,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 	choices := make([]*llms.ContentChoice, len(result.Content))
 	for i, content := range result.Content {
 		switch content.GetType() {
-		case "text":
+		case anthropicclient.EventTypeText:
 			if textContent, ok := content.(*anthropicclient.TextContent); ok {
 				choices[i] = &llms.ContentChoice{
 					Content:    textContent.Text,
@@ -179,7 +179,7 @@ func generateMessagesContent(ctx context.Context, o *LLM, messages []llms.Messag
 			} else {
 				return nil, fmt.Errorf("anthropic: %w for text message", ErrInvalidContentType)
 			}
-		case "tool_use":
+		case anthropicclient.EventTypeToolUse:
 			if toolUseContent, ok := content.(*anthropicclient.ToolUseContent); ok {
 				choices[i] = &llms.ContentChoice{
 					ToolCalls: []llms.ToolCall{
@@ -317,29 +317,30 @@ func parseBase64URI(uri string) (data string, mediaType string, err error) {
 }
 
 func handleAIMessage(msg llms.MessageContent) (anthropicclient.ChatMessage, error) {
-	if toolCall, ok := msg.Parts[0].(llms.ToolCall); ok {
-		toolUse := anthropicclient.ToolUseContent{
-			Type:  "tool_use",
-			ID:    toolCall.ID,
-			Name:  toolCall.FunctionCall.Name,
-			Input: toolCall.FunctionCall.Arguments,
-		}
-
-		return anthropicclient.ChatMessage{
-			Role:    RoleAssistant,
-			Content: []anthropicclient.Content{toolUse},
-		}, nil
+	message := anthropicclient.ChatMessage{
+		Role:    RoleAssistant,
+		Content: []anthropicclient.Content{},
 	}
-	if textContent, ok := msg.Parts[0].(llms.TextContent); ok {
-		return anthropicclient.ChatMessage{
-			Role: RoleAssistant,
-			Content: []anthropicclient.Content{&anthropicclient.TextContent{
+	for _, part := range msg.Parts {
+		switch p := part.(type) {
+		case llms.TextContent:
+			message.Content = append(message.Content, anthropicclient.TextContent{
 				Type: "text",
-				Text: textContent.Text,
-			}},
-		}, nil
+				Text: p.Text,
+			})
+		case llms.ToolCall:
+			message.Content = append(message.Content, anthropicclient.ToolUseContent{
+				Type:  "tool_use",
+				ID:    p.ID,
+				Name:  p.FunctionCall.Name,
+				Input: p.FunctionCall.Arguments,
+			})
+		default:
+			return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for AI message", ErrInvalidContentType)
+		}
 	}
-	return anthropicclient.ChatMessage{}, fmt.Errorf("anthropic: %w for AI message", ErrInvalidContentType)
+
+	return message, nil
 }
 
 type ToolResult struct {
