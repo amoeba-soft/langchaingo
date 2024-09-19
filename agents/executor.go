@@ -95,10 +95,6 @@ func (e *Executor) doIteration( // nolint
 		return steps, nil, err
 	}
 
-	if len(actions) == 0 && finish == nil {
-		return steps, nil, ErrAgentNoReturn
-	}
-
 	if finish != nil {
 		if e.CallbacksHandler != nil {
 			e.CallbacksHandler.HandleAgentFinish(ctx, *finish)
