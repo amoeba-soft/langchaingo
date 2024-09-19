@@ -152,6 +152,7 @@ func (c *Client) setHeaders(req *http.Request) {
 	req.Header.Set("x-api-key", c.token)
 	// TODO: expose version as a option/parameter
 	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("anthropic-beta", "max-tokens-3-5-sonnet-2024-07-15")
 }
 
 func (c *Client) do(ctx context.Context, path string, payloadBytes []byte) (*http.Response, error) {
