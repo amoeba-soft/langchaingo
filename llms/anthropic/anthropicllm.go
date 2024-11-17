@@ -97,6 +97,9 @@ func (o *LLM) GenerateContent(ctx context.Context, messages []llms.MessageConten
 	if err != nil {
 		return nil, err
 	}
+
+	println("!!!!!!!!! callbacks handler null:", o.CallbacksHandler == nil)
+	println("!!!!!!!!! resp null:", resp == nil)
 	o.CallbacksHandler.HandleLLMGenerateContentEnd(ctx, resp)
 	return resp, err
 }
